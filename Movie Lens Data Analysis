@@ -1,0 +1,107 @@
+### -- To Load Data
+ratings = LOAD '/user/maria_dev/ml-100k/u.data' AS (userID:int, movieID:int, rating:int, timestamp:int);
+
+-- To Load Data using Delimiters
+moviedata = LOAD '/user/maria_dev/ml-100k/u.item' USING PigStorage('|') 
+			AS (movieID:int, movieTitle:chararray,releaseDate:chararray);
+            
+-- To generate specified transformation use FOREACH GENERATE
+-- Converting Date from chararray to unix date and time
+nameLookup = FOREACH moviedata GENERATE movieID, movieTitle, 
+				ToUnixTime(ToDate(releaseDate,'dd-MMM-yyyy')) AS releaseTime;
+
+/*
+-- DESCRIBE - to view the schema of a relation
+DESCRIBE ratings;
+
+-- EXPLAIN
+EXPLAIN ratings;
+
+-- Ilustrate
+illustrate ratings;
+*/
+
+
+-- GROUP BY Statments
+
+-- GROUP ALL
+ratings_all=  GROUP ratings All;
+
+-- GROUP BY rating stars
+ratingsBystars = GROUP ratings BY rating;
+
+-- To GROUP BY movie ID
+ratingsByMovie = GROUP ratings BY movieID;
+--DUMP ratingsBystars
+
+-- GROUP BY Multiple Columns
+ratingsBystarsAndmovieID = GROUP ratings BY (rating, movieID);
+
+--COGROUP Grouping two relationsusing key column name
+--cogroup_data = COGROUP ratings BY movieID, moviedata BY movieID;
+
+-- To count Number of rows in the data set
+RowCount = FOREACH ratings_all GENERATE COUNT(ratings.rating) AS row_count;
+--DUMP RowCount;
+
+--To count number of ratings
+countRatings = FOREACH ratingsBystars GENERATE group AS rating, COUNT(ratings.rating) AS ratingCount;
+--DUMP countRatings;
+
+/*
+--TO split the data
+--SPLIT ratings into OnestarRating IF rating == 1, OtherstarsRating IF rating > 1 ;
+*/
+
+
+-- To find Average rating
+avgRatings = FOREACH ratingsByMovie GENERATE group AS movieID, AVG(ratings.rating) AS avgRating;
+
+--Using FILTER to find 5 star movies
+fiveStarMovies = FILTER avgRatings BY avgRating > 4.0;
+
+-- Using JOIN to join two relational tables
+fiveStarswithData = JOIN fiveStarMovies BY movieID, nameLookup BY movieID;
+
+
+
+rataaingsByMovie = GROUP ratings BY movieID;
+avgRatings = FOREACH ratingsByMovie GENERATE group as movieID, AVG(ratings.rating) AS avgRating, 
+			COUNT(ratings.rating) AS numRating;
+
+badMovies = FILTER avgRatings BY avgRating < 2.0 ;
+
+
+badMoviesName = JOIN badMovies BY movieID, nameLookup by movieID;
+
+
+--DUMP badMoviesName;
+
+finalResults = FOREACH badMoviesName GENERATE nameLookup::movieTitle AS movieName,
+				badMovies::avgRating AS AverageRating,
+					badMovies::numRating AS RatingCount;
+
+--DUMP finalResults;
+
+finalResultsSorted = ORDER finalResults BY RatingCount DESC;
+DUMP finalResultsSorted;
+/*
+--Sorting by release time
+
+oldestFiveStarMovies = ORDER fiveStarswithData BY nameLookup::releaseTime;
+
+---To print the Contents
+
+DUMP oldestFiveStarMovies;
+*/
+
+
+
+
+
+
+
+
+
+
+
